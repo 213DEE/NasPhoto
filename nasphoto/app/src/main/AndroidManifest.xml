@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission
+        android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!--
+      悬浮窗权限：**可选**，只为「相册删了照片 → 浮一张卡片问要不要一起删 NAS 备份」。
+      没有它功能照样能用（自动降级成带按钮的通知），但卡片体验更好。
+      另外它还是 Android 12+ 允许「从后台启动前台服务」的官方豁免条件之一 ——
+      有了它，内容触发器那条通道才有能力把常驻监听救回来。
+    -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <application
+        android:allowBackup="false"
+        android:label="@string/app_name"
+        android:requestLegacyExternalStorage="true"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.NasPhoto">
+
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.OffloadedActivity"
+            android:exported="false"
+            android:label="@string/title_offloaded" />
+
+        <!--
+          回收站（最近删除）：查看 / 还原 / 彻底删除。
+          不 exported —— 只有 App 内部能打开；自动化验证走 MainActivity 的
+          trash 字符串探针（见 MainActivity 里的 probeTrash），
+          不需要为了测试把它暴露出去。
+
+          ⚠️ 这个注释里**不能出现两个连续的 ASCII 连字符** —— XML 规范禁止，
+             构建会在 processDebugMainManifest 阶段直接失败，报错只说"解析失败"，
+             不会告诉你是注释的问题。踩过一次。
+        -->
+        <activity
+            android:name=".ui.TrashActivity"
+            android:exported="false"
+            android:label="@string/title_trash" />
+
+        <!--
+          从 NAS 找回照片（整库回灌）：扫描归档树 → 空间预检 → 分批回灌。
+          同样不 exported —— 自动化验证走 MainActivity 的 `restoreProbe` 字符串探针。
+        -->
+        <activity
+            android:name=".ui.RestoreActivity"
+            android:exported="false"
+            android:label="@string/title_restore_from_nas" />
+
+        <!--
+          实时监听：常驻前台服务（监听相册变化 → 自动同步）。
+          对标小米智能存储的 XMListenerService 架构：前台服务 + ContentObserver + 开机自启。
+        -->
+        <service
+            android:name=".service.SyncService"
+            android:exported="false"
+            android:stopWithTask="false"
+            android:foregroundServiceType="dataSync" />
+
+        <!--
+          通道②：JobScheduler 内容触发器。系统代管监听 MediaStore，
+          我们的进程死没死都不影响它被唤起 —— 常驻服务被杀时的兜底。
+          ⚠️ JobService 必须声明 BIND_JOB_SERVICE 权限，否则调度直接失败。
+        -->
+        <service
+            android:name=".service.MediaTriggerJobService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+
+        <!--
+          开机自启：这是 Android 12+ 允许从后台启动前台服务的豁免时机。
+          另外把 TIME_SET / TIMEZONE_CHANGED / LOCALE_CHANGED 也接上 ——
+          这三个同样是官方豁免项，等于多几个"合法复活"的机会。
+        -->
+        <receiver
+            android:name=".service.BootReceiver"
+            android:exported="true"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.LOCALE_CHANGED" />
+            </intent-filter>
+        </receiver>
+
+        <!--
+          「一起删 / 保留」两个按钮的落点（悬浮卡片与通知共用一条路径）。
+          exported=false + 广播带 setPackage 限定，外部应用发不进来。
+        -->
+        <receiver
+            android:name=".service.DeleteActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="cn.dsr213.nasphoto.DELETE_SYNC_TRASH" />
+                <action android:name="cn.dsr213.nasphoto.DELETE_SYNC_KEEP" />
+                <action android:name="cn.dsr213.nasphoto.DELETE_SYNC_DEL_LOCAL" />
+                <action android:name="cn.dsr213.nasphoto.DELETE_SYNC_KEEP_LOCAL" />
+            </intent-filter>
+        </receiver>
+
+        <!--
+          后台同步走 WorkManager 的长任务前台服务。
+          ⚠️ WorkManager 自带这份 service 声明，但**没有** foregroundServiceType，
+          Android 14+ 起没有 type 会直接抛异常 —— 所以这里用 merge 打补丁。
+        -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
+    </application>
+</manifest>

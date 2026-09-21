@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  根布局**不能**再是 ScrollView：
+  日志区要占满剩余高度（height=0dp + weight=1）才能独立滚动，
+  而 weight 在 wrap_content 的父容器里是无效的 —— 那样日志会被压成 0 高。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:id="@+id/tvStats"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="16sp"
+        android:lineSpacingExtra="6dp"
+        android:text="——" />
+
+    <!-- 日志工具条：图例 + 自动滚动 + 清空 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="10sp"
+            android:lineSpacingExtra="2dp"
+            android:text="↑上传/备份　↓恢复　·降级&#10;=已存档　!失败　·服务/触发器=通道状态" />
+
+        <CheckBox
+            android:id="@+id/cbAutoScroll"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:textSize="12sp"
+            android:text="自动滚动" />
+
+        <Button
+            android:id="@+id/btnClearLog"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="0dp"
+            android:paddingLeft="12dp"
+            android:paddingRight="12dp"
+            android:textSize="12sp"
+            android:text="清空" />
+    </LinearLayout>
+
+    <ScrollView
+        android:id="@+id/svLog"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:minHeight="180dp"
+        android:layout_marginTop="6dp"
+        android:background="#14000000"
+        android:padding="8dp"
+        android:scrollbars="vertical">
+
+        <TextView
+            android:id="@+id/tvLog"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:textSize="11sp"
+            android:lineSpacingExtra="3dp"
+            android:text="" />
+    </ScrollView>
+
+    <Button
+        android:id="@+id/btnScan"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="@string/btn_scan" />
+
+    <Button
+        android:id="@+id/btnOffload"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/btn_offload" />
+
+    <Button
+        android:id="@+id/btnOpenRestore"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/btn_open_restore" />
+
+    <Button
+        android:id="@+id/btnOpenRestoreFromNas"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/btn_open_restore_from_nas" />
+
+    <Button
+        android:id="@+id/btnTrash"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/btn_trash" />
+
+    <Button
+        android:id="@+id/btnSettings"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/btn_settings" />
+</LinearLayout>

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ⚠️⚠️ 为什么是**两层**（同一处踩过两个坑，都记在这里）：
+
+  1. `fitsSystemWindows` 不能省：主题把 statusBarColor 设成了透明，而 Android 15
+     （targetSdk 35）强制 edge-to-edge —— 不加它，第一行「共 N 个文件」会被状态栏
+     和挖孔摄像头压掉上半截。
+
+  2. 外层**绝对不能同时写 padding**：`fitsSystemWindows="true"` 的 View 会拿收到的
+     系统栏 insets 去**覆盖**自己的 padding，XML 里写的 padding 会被整个抹掉。
+     后果不只是贴边 —— 右侧「还原」按钮会顶到屏幕边缘、落进系统手势区，**点了没反应**；
+     而它在 uiautomator 里 enabled / clickable 全是 true，极具误导性。
+     实测证据：加了 fitsSystemWindows 又带 padding 之后，tvSummary 的 bounds 是
+     `[0,126][1168,241]`，左边缘 0、右边缘恰好是屏宽 —— padding 一点没剩。
+
+  所以：外层只管吃 insets，留白一律放内层。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:fitsSystemWindows="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:id="@+id/tvSummary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="15sp"
+            android:lineSpacingExtra="4dp"
+            android:text="—" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textSize="11sp"
+            android:alpha="0.55"
+            android:text="@string/trash_hint" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recycler"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginTop="10dp"
+            android:clipToPadding="false" />
+
+        <TextView
+            android:id="@+id/tvLog"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxLines="5"
+            android:fontFamily="monospace"
+            android:textSize="11sp"
+            android:text="" />
+
+        <Button
+            android:id="@+id/btnRestoreAll"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/btn_restore_all_trash" />
+
+        <Button
+            android:id="@+id/btnEmptyTrash"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/btn_empty_trash" />
+
+        <Button
+            android:id="@+id/btnBack"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/btn_back" />
+    </LinearLayout>
+</LinearLayout>

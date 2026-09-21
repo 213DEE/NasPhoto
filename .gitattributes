@@ -1,0 +1,14 @@
+# 统一换行符：文本文件一律以 LF 入库。
+# 否则在 Windows 上克隆再提交会把 gradlew / *.sh 写成 CRLF，
+# 到了 Linux / macOS 上这些脚本会因为 shebang 解析失败而无法执行。
+* text=auto eol=lf
+
+# 这两个是给 Windows 用的，保留 CRLF
+*.bat text eol=crlf
+
+# 二进制文件不要做任何转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.jar binary
+*.icon binary

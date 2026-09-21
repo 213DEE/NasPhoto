@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NAS 照片管家</string>
+    <string name="btn_scan">扫描可卸载照片</string>
+    <string name="btn_offload">开始上传并卸载</string>
+    <string name="btn_settings">设置</string>
+    <string name="btn_restore">恢复原图</string>
+    <string name="btn_open_restore">已卸载列表 / 恢复原图</string>
+    <string name="btn_open_restore_from_nas">从 NAS 找回照片</string>
+    <string name="title_restore_from_nas">从 NAS 找回照片</string>
+    <string name="btn_scan_nas">① 扫描 NAS 归档</string>
+    <string name="btn_run_restore">② 开始回灌</string>
+    <string name="btn_restore_all">全部恢复原图</string>
+    <string name="btn_back">返回</string>
+    <string name="title_offloaded">已卸载照片</string>
+    <string name="row_restore">恢复</string>
+    <!--
+      回收站里单独用「还原」：那个动作是把文件 MOVE 回原位，
+      与「已卸载列表」里把降级小图换回原图的「恢复」不是一回事，
+      文案跟着提示语和对话框走，别混用。
+    -->
+    <string name="row_restore_trash">还原</string>
+    <string name="btn_trash">回收站（最近删除）</string>
+    <string name="title_trash">回收站</string>
+    <string name="btn_restore_all_trash">全部还原</string>
+    <string name="btn_empty_trash">彻底清空回收站</string>
+    <string name="trash_hint">点「还原」把文件移回原位；长按整行才是彻底删除（不可逆）</string>
+</resources>

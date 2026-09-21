@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>回收站（界面预览）</title>
+<style>
+  :root{
+    --bg:#111114; --card:#242429; --line:#33333a; --fg:#ececf1; --dim:#9a9aa4;
+    --accent:#4c8dff; --danger:#ff5b5b; --warn:#ffa53c;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--fg);
+       font:14px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+
+  /* ---------- 顶栏 ---------- */
+  header{position:sticky;top:0;z-index:20;background:rgba(17,17,20,.92);
+         backdrop-filter:blur(12px);border-bottom:1px solid var(--line);
+         padding:calc(env(safe-area-inset-top) + 10px) 14px 10px}
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  h1{font-size:17px;margin:0;font-weight:600;flex:1;min-width:120px}
+  .sub{color:var(--dim);font-size:12px;margin-top:2px}
+  select,button{font:inherit;color:var(--fg);background:var(--card);
+                border:1px solid var(--line);border-radius:9px;padding:7px 12px;cursor:pointer}
+  button:active{transform:scale(.97)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.danger{background:transparent;border-color:var(--danger);color:var(--danger)}
+  button.danger:disabled,button:disabled{opacity:.35;cursor:not-allowed}
+  button.ghost{background:transparent}
+
+  /* ---------- 网格 ---------- */
+  #grid{display:grid;gap:6px;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));
+        padding:8px 10px calc(env(safe-area-inset-bottom) + 104px)}
+  .cell{position:relative;aspect-ratio:1;border-radius:11px;overflow:hidden;
+        background:var(--card);user-select:none}
+  .cell img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+  .cell.sel{outline:3px solid var(--accent);outline-offset:-3px}
+  .cell.sel img{opacity:.72}
+
+  /* 右上角：剩余天数 */
+  .badge{position:absolute;top:5px;right:5px;padding:2px 7px;border-radius:20px;
+         font-size:11px;font-weight:600;background:rgba(0,0,0,.66);backdrop-filter:blur(4px);
+         border:1px solid rgba(255,255,255,.16);white-space:nowrap}
+  .badge.warn{color:#ffd8a8;border-color:rgba(255,165,60,.5)}
+  .badge.soon{color:#ffd0d0;border-color:rgba(255,91,91,.6)}
+
+  /* 左上角：选择圈 */
+  .tick{position:absolute;top:5px;left:5px;width:22px;height:22px;border-radius:50%;
+        border:2px solid rgba(255,255,255,.75);background:rgba(0,0,0,.28);
+        display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff}
+  .cell.sel .tick{background:var(--accent);border-color:var(--accent)}
+  .cell.sel .tick::after{content:"✓"}
+
+  /* 底部信息条 */
+  .meta{position:absolute;left:0;right:0;bottom:0;padding:16px 7px 5px;
+        background:linear-gradient(transparent,rgba(0,0,0,.82));font-size:11px;line-height:1.35}
+  .meta .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .meta .sz{color:#c9c9d2;opacity:.9}
+  .bad{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+       color:var(--dim);font-size:12px}
+
+  /* ---------- 空态 ---------- */
+  #empty{display:none;text-align:center;color:var(--dim);padding:80px 24px}
+  #empty .big{font-size:44px;opacity:.35;margin-bottom:10px}
+
+  /* ---------- 底部操作栏 ---------- */
+  #bar{position:fixed;left:0;right:0;bottom:0;z-index:20;
+       padding:10px 14px calc(env(safe-area-inset-bottom) + 10px);
+       background:rgba(17,17,20,.94);backdrop-filter:blur(12px);
+       border-top:1px solid var(--line);display:flex;align-items:center;gap:10px}
+  #bar .cnt{flex:1;font-size:13px;color:var(--dim)}
+  #bar .cnt b{color:var(--fg)}
+
+  /* ---------- 二次确认 ---------- */
+  .modal{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.62);
+         display:none;align-items:center;justify-content:center;padding:24px}
+  .modal.on{display:flex}
+  .dlg{background:#1c1c20;border:1px solid var(--line);border-radius:16px;
+       padding:20px;max-width:360px;width:100%}
+  .dlg h2{margin:0 0 8px;font-size:16px}
+  .dlg p{margin:0 0 18px;color:var(--dim);font-size:13px;line-height:1.6}
+  .dlg .acts{display:flex;gap:10px;justify-content:flex-end}
+  .dlg .acts button{min-width:84px}
+
+  /* 长按/拖选时禁用滚动 */
+  body.selecting #grid{touch-action:none}
+  #toast{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);
+         background:rgba(0,0,0,.85);border:1px solid var(--line);color:#fff;
+         padding:9px 16px;border-radius:22px;font-size:13px;z-index:60;
+         opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
+  #toast.on{opacity:1}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="row">
+    <div style="flex:1;min-width:130px">
+      <h1>回收站 <span style="font-size:12px;color:#ffa53c;font-weight:400">界面预览 · 模拟数据</span></h1>
+      <div class="sub" id="stat">读取中…</div>
+    </div>
+    <select id="keep" title="保留天数">
+      <option value="3">保留 3 天</option>
+      <option value="7">保留 7 天</option>
+      <option value="14">保留 14 天</option>
+      <option value="30">保留 30 天</option>
+    </select>
+  </div>
+  <div class="row" style="margin-top:9px">
+    <button class="ghost" id="btnAll">全选</button>
+    <button class="ghost" id="btnNone">取消选择</button>
+    <button class="ghost" id="btnRefresh">刷新</button>
+  </div>
+</header>
+
+<div id="empty">
+  <div class="big">🗑</div>
+  <div>回收站是空的</div>
+  <div style="font-size:12px;margin-top:6px">在手机相册里删除照片后会出现在这里</div>
+</div>
+
+<main id="grid"></main>
+
+<div id="bar">
+  <div class="cnt" id="cnt">未选择</div>
+  <button id="btnRestore" disabled>还原</button>
+  <button class="danger" id="btnPurge" disabled>彻底删除</button>
+</div>
+
+<div class="modal" id="confirm">
+  <div class="dlg">
+    <h2>彻底删除？</h2>
+    <p id="cfmText"></p>
+    <div class="acts">
+      <button class="ghost" id="cfmNo">取消</button>
+      <button class="danger" id="cfmYes">彻底删除</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+const API = 'api.cgi';
+
+/* ===== 预览用的模拟数据（正式版不会用到这段）===== */
+const MOCK = {keepDays:7, items:[
+ {rel:"2026-09-16/DCIM/Camera/IMG20250728050458.jpg", name:"IMG20250728050458.jpg",  orig:"DCIM/Camera/IMG20250728050458.jpg", date:"2026-09-16", size:13774076, left:7, kind:"image"},
+ {rel:"2026-09-16/DCIM/Camera/IMG20250727224857.jpg", name:"IMG20250727224857.jpg",  orig:"DCIM/Camera/IMG20250727224857.jpg", date:"2026-09-16", size:11651987, left:7, kind:"image"},
+ {rel:"2026-09-16/Pictures/image_editor_1786372705214.jpg", name:"image_editor_1786372705214.jpg", orig:"Pictures/image_editor_1786372705214.jpg", date:"2026-09-16", size:192826, left:6, kind:"image"},
+ {rel:"2026-09-16/DCIM/Camera/P1262446.MOV", name:"P1262446.MOV", orig:"DCIM/Camera/P1262446.MOV", date:"2026-09-15", size:143797281, left:6, kind:"video"},
+ {rel:"2026-09-15/Download/SmartStorage/IMG_20240903_005319(1).jpg", name:"IMG_20240903_005319(1).jpg", orig:"Download/SmartStorage/IMG_20240903_005319(1).jpg", date:"2026-09-15", size:3556716, left:5, kind:"image"},
+ {rel:"2026-09-15/Pictures/WeType/mmexport1789058129853.png", name:"mmexport1789058129853.png", orig:"Pictures/WeType/mmexport1789058129853.png", date:"2026-09-15", size:22732, left:4, kind:"image"},
+ {rel:"2026-09-15/wx_camera_1774892619315.mp4", name:"wx_camera_1774892619315.mp4", orig:"wx_camera_1774892619315.mp4", date:"2026-09-15", size:5395482, left:2, kind:"video"},
+ {rel:"2026-09-14/DCIM/Camera/IMG_20231202_113106.jpg", name:"IMG_20231202_113106.jpg", orig:"DCIM/Camera/IMG_20231202_113106.jpg", date:"2026-09-14", size:5995985, left:1, kind:"image"},
+ {rel:"2026-09-14/DCIM/Camera/IMG_20231202_111348.jpg", name:"IMG_20231202_111348.jpg", orig:"DCIM/Camera/IMG_20231202_111348.jpg", date:"2026-09-14", size:4048000, left:1, kind:"image"},
+ {rel:"2026-09-14/DCIM/Camera/IMG_20231202_111439.jpg", name:"IMG_20231202_111439.jpg", orig:"DCIM/Camera/IMG_20231202_111439.jpg", date:"2026-09-14", size:4210000, left:0, kind:"image"},
+]};
+/* ================================================ */
+
+let items = [];                 // 服务端返回的条目
+let selected = new Set();       // 选中的 rel
+
+const $ = id => document.getElementById(id);
+const grid = $('grid');
+
+/* ---------------------------------------------------------------- 工具 */
+function fmtSize(n){
+  if(n >= 1073741824) return (n/1073741824).toFixed(2)+' GB';
+  if(n >= 1048576)    return (n/1048576).toFixed(1)+' MB';
+  if(n >= 1024)       return (n/1024).toFixed(0)+' KB';
+  return n+' B';
+}
+let toastTimer=null;
+function toast(msg){
+  const t=$('toast'); t.textContent=msg; t.classList.add('on');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('on'),1800);
+}
+
+/* ---------------------------------------------------------------- 加载 */
+async function load(){
+  try{
+    const d = MOCK;   // 预览：不请求后端
+    items = d.items || [];
+    $('keep').value = String(d.keepDays || 7);
+    // 保留天数可能是自定义值，不在选项里就补一个
+    if(![...$('keep').options].some(o=>o.value===String(d.keepDays))){
+      const o=document.createElement('option');
+      o.value=String(d.keepDays); o.textContent='保留 '+d.keepDays+' 天';
+      $('keep').appendChild(o); $('keep').value=String(d.keepDays);
+    }
+  }catch(e){
+    items = [];
+    toast('读取失败：'+e.message);
+  }
+  // 清掉已经不在回收站里的选中项
+  const alive = new Set(items.map(i=>i.rel));
+  [...selected].forEach(r=>{ if(!alive.has(r)) selected.delete(r); });
+  render();
+}
+
+/* ---------------------------------------------------------------- 渲染 */
+function render(){
+  const total = items.reduce((s,i)=>s+i.size,0);
+  $('stat').textContent = items.length
+      ? items.length+' 项 · 共 '+fmtSize(total)
+      : '空的';
+  $('empty').style.display = items.length ? 'none' : 'block';
+
+  const frag = document.createDocumentFragment();
+  for(const it of items){
+    const cell = document.createElement('div');
+    cell.className = 'cell' + (selected.has(it.rel) ? ' sel' : '');
+    cell.dataset.rel = it.rel;
+
+    const img = document.createElement('img');
+    img.loading = 'lazy';
+    // 预览版：用渐变占位图代替真实缩略图
+    const hue = (it.name.length * 37) % 360;
+    const isVideo = it.kind === 'video';
+    img.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">' +
+      '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">' +
+      '<stop offset="0" stop-color="hsl('+hue+',38%,34%)"/>' +
+      '<stop offset="1" stop-color="hsl('+((hue+40)%360)+',44%,20%)"/></linearGradient></defs>' +
+      '<rect width="200" height="200" fill="url(#g)"/>' +
+      (isVideo
+        ? '<polygon points="80,66 80,134 140,100" fill="rgba(255,255,255,.82)"/>'
+        : '<circle cx="72" cy="72" r="17" fill="rgba(255,255,255,.55)"/>' +
+          '<path d="M22,150 L72,104 L108,138 L136,116 L178,152 L178,178 L22,178 Z" fill="rgba(255,255,255,.45)"/>') +
+      '</svg>');
+    img.alt = it.name;
+    cell.appendChild(img);
+
+    const tick = document.createElement('div');
+    tick.className='tick';
+    cell.appendChild(tick);
+
+    // 右上角剩余天数（0 天 = 下次清理就没了）
+    const b = document.createElement('div');
+    const left = it.left;
+    b.className = 'badge' + (left<=1 ? ' soon' : (left<=2 ? ' warn' : ''));
+    b.textContent = left<=0 ? '即将清理' : ('剩 '+left+' 天');
+    cell.appendChild(b);
+
+    const meta = document.createElement('div');
+    meta.className='meta';
+    meta.innerHTML = '<div class="nm"></div><div class="sz"></div>';
+    meta.querySelector('.nm').textContent = it.name;
+    meta.querySelector('.sz').textContent = fmtSize(it.size);
+    cell.appendChild(meta);
+
+    frag.appendChild(cell);
+  }
+  grid.innerHTML='';
+  grid.appendChild(frag);
+
+  document.body.classList.toggle('selecting', selected.size>0);
+  updateBar();
+}
+
+function toggle(rel){
+  if(selected.has(rel)) selected.delete(rel); else selected.add(rel);
+  const c = grid.querySelector('.cell[data-rel="'+cssEsc(rel)+'"]');
+  if(c) c.classList.toggle('sel', selected.has(rel));
+  document.body.classList.toggle('selecting', selected.size>0);
+  updateBar();
+}
+
+/* rel 里可能有引号等，选择器要转义 */
+function cssEsc(s){ return s.replace(/["\\]/g, '\\$&'); }
+
+function updateBar(){
+  const n = selected.size;
+  $('cnt').innerHTML = n ? ('已选 <b>'+n+'</b> 项') : '未选择';
+  $('btnRestore').disabled = n===0;
+  $('btnPurge').disabled   = n===0;
+}
+
+/* ---------------------------------------------------------------- 滑动多选
+   鼠标：按下后拖动即连续涂抹
+   触屏：先长按（300ms）进入选择模式，之后同一根手指继续滑动即可连续涂抹。
+        进入选择模式后才 preventDefault，避免影响正常滚动。            */
+let dragging=false, dragMode=null, pressTimer=null, lastCell=null, downCell=null, moved=false;
+
+function cellFrom(x,y){
+  const el = document.elementFromPoint(x,y);
+  return el ? el.closest('.cell') : null;
+}
+function paint(cell){
+  if(!cell || cell===lastCell) return;
+  lastCell = cell;
+  const rel = cell.dataset.rel; if(rel===undefined) return;
+  if(dragMode==='select') selected.add(rel); else selected.delete(rel);
+  cell.classList.toggle('sel', selected.has(rel));
+  updateBar();
+}
+function beginDrag(rel){
+  dragging = true; lastCell = null;
+  dragMode = selected.has(rel) ? 'deselect' : 'select';
+  document.body.classList.add('selecting');
+}
+
+grid.addEventListener('pointerdown', e=>{
+  const cell = cellFrom(e.clientX,e.clientY);
+  if(!cell) return;
+  downCell = cell; moved = false;
+
+  if(e.pointerType === 'mouse'){
+    // 鼠标：先不进入拖选，等真的拖动了再说（否则单击会被当成拖选起点）
+  }else{
+    clearTimeout(pressTimer);
+    pressTimer = setTimeout(()=>{
+      pressTimer = null;
+      beginDrag(cell.dataset.rel);
+      paint(cell);
+      if(navigator.vibrate) navigator.vibrate(12);
+    }, 300);
+  }
+});
+
+grid.addEventListener('pointermove', e=>{
+  if(pressTimer && e.pointerType!=='mouse'){   // 手指移动了 → 不是长按
+    const c = cellFrom(e.clientX,e.clientY);
+    if(c !== downCell){ clearTimeout(pressTimer); pressTimer=null; }
+  }
+  if(!dragging){
+    if(e.pointerType==='mouse' && downCell && (e.buttons&1)){
+      const c = cellFrom(e.clientX,e.clientY);
+      if(c && c!==downCell){ beginDrag(downCell.dataset.rel); paint(downCell); paint(c); }
+    }
+    return;
+  }
+  if(e.pointerType!=='mouse') e.preventDefault();   // 选择模式下禁止滚动
+  paint(cellFrom(e.clientX,e.clientY));
+},{passive:false});
+
+window.addEventListener('pointerup', e=>{
+  if(pressTimer){ clearTimeout(pressTimer); pressTimer=null; }
+  if(dragging){ dragging=false; lastCell=null; return; }
+  // 没进入拖选 → 当成一次点击
+  if(downCell){
+    toggle(downCell.dataset.rel);
+  }
+  downCell = null;
+});
+window.addEventListener('pointercancel', ()=>{
+  clearTimeout(pressTimer); pressTimer=null; dragging=false; lastCell=null; downCell=null;
+});
+
+/* ---------------------------------------------------------------- 操作 */
+async function act(action, rels, confirmWord){
+  try{
+    // 预览版：不真的操作，只模拟一下耗时
+    await new Promise(r=>setTimeout(r,320));
+    return {ok: rels.length, failed: 0};
+  }catch(e){
+    toast('操作失败：'+e.message);
+    return {ok:0, failed:rels.length, error:e.message};
+  }
+}
+
+$('btnRestore').onclick = async ()=>{
+  const rels=[...selected];
+  if(!rels.length) return;
+  $('btnRestore').disabled = true;
+  const d = await act('restore', rels);
+  toast('已还原 '+(d.ok||0)+' 项'+(d.failed?('，失败 '+d.failed):''));
+  selected.clear(); await load();
+};
+
+$('btnPurge').onclick = ()=>{
+  const rels=[...selected];
+  if(!rels.length) return;
+  $('cfmText').textContent =
+    '将永久删除 ' + rels.length + ' 项，约 ' +
+    fmtSize(items.filter(i=>selected.has(i.rel)).reduce((s,i)=>s+i.size,0)) +
+    '。\n此操作不可恢复，手机相册里的文件已经被降级，删掉母本后就找不回了。';
+  $('cfmText').style.whiteSpace='pre-line';
+  $('confirm').classList.add('on');
+};
+$('cfmNo').onclick = ()=> $('confirm').classList.remove('on');
+$('confirm').addEventListener('click', e=>{ if(e.target===$('confirm')) $('confirm').classList.remove('on'); });
+$('cfmYes').onclick = async ()=>{
+  $('confirm').classList.remove('on');
+  const rels=[...selected];
+  $('btnPurge').disabled = true;
+  const d = await act('purge', rels);
+  toast('已彻底删除 '+(d.ok||0)+' 项'+(d.failed?('，失败 '+d.failed):''));
+  selected.clear(); await load();
+};
+
+$('btnAll').onclick  = ()=>{ items.forEach(i=>selected.add(i.rel)); render(); };
+$('btnNone').onclick = ()=>{ selected.clear(); render(); };
+$('btnRefresh').onclick = load;
+
+$('keep').onchange = async ()=>{
+  const v = $('keep').value;
+  /* 预览版：不真的改 */ void (API+'?action=config', {method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'}, body:String(v)});
+  toast('保留天数已改为 '+v+' 天');
+  await load();
+};
+
+load();
+</script>
+</body>
+</html>

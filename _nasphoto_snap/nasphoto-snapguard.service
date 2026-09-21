@@ -1,0 +1,17 @@
+[Unit]
+Description=NasPhoto Snapshot Guard (computer-side delete -> shared trash)
+Documentation=file:/data/nasphoto_snap/README.md
+After=network.target local-fs.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /data/nasphoto_snap/snap_guard.py --daemon --interval 180
+Restart=always
+RestartSec=15
+
+# 让路给 SMB 与监控转码（与 /data/clash/restore.sh 里同一思路）
+Nice=10
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=multi-user.target

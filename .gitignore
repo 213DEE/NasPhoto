@@ -1,0 +1,93 @@
+# ============================================================
+#  NasPhoto — 只有产品源码入库
+#
+#  这个目录原本是一个开发工作区，除了项目本身还堆了大量
+#  一次性脚本、逆向产物、固件、抓包与内部知识库。
+#  下面的规则把它们挡在仓库之外。
+# ============================================================
+
+# ---------------- 构建产物 ----------------
+build/
+build[0-9]/
+build_gui*/
+dist/
+dist_gui*/
+out/
+.gradle/
+.kotlin/
+local.properties
+
+*.apk
+*.aab
+*.apks
+*.jar
+*.dex
+*.odex
+*.vdex
+*.oat
+*.class
+
+# Gradle wrapper 的 jar 是必入库的，从上面的 *.jar 里放出来
+!gradle/wrapper/gradle-wrapper.jar
+!nasphoto/gradle/wrapper/gradle-wrapper.jar
+
+# ---------------- Python ----------------
+__pycache__/
+*.py[cod]
+*.py.bak-*
+
+# ---------------- 固件 / 归档 / 日志 ----------------
+*.bin
+*.img
+*.zip
+*.log
+
+# ---------------- 本机工具链（体积大、可自行重建）----------------
+tools/
+
+# ---------------- 开发工作区私有内容 ----------------
+# 内部知识库：含设备凭据、提权过程、内网拓扑，不对外发布
+小米NAS知识库/
+.workbuddy/
+
+# 一次性脚本与探针输出
+_breaker/
+_np_baseline/
+_np_d1b/
+_np_verify/
+_ui_shots/
+_leftover_*
+*清理证据*.txt
+*实施证据*.txt
+arch_final.json
+_index.html
+
+# 逆向 / 抓包 / 实验目录
+apk/
+extracted/
+openclaw-windows-node/
+xiaomi-nas-root/
+motionprobe/
+hdrtest/
+jschtest/
+polytest/
+real_after/
+real_sample/
+logsample/
+1p_debug/
+db[0-9]/
+d9/
+gi/
+gal/
+chk/
+chk_db/
+icons/
+generated-icons/
+
+# ---------------- App 目录内的非源码 ----------------
+nasphoto/*.png
+
+# ---------------- OS ----------------
+.DS_Store
+Thumbs.db
+desktop.ini
