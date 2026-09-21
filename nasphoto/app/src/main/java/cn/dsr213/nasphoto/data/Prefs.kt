@@ -13,19 +13,37 @@ class Prefs(ctx: Context) {
     /**
      * WebDAV 基址（小米 NAS 自带服务，nginx :5000）。
      * `/pool0/data` 经 `/home/<user>/pool0/data` 符号链接指向 `/nas/pool0/<user>/data`。
+     *
+     * 形如 `https://<你的 NAS 地址>:5000/pool0/data`。
+     *
+     * ⚠️ **默认空** —— 本项目不含任何预置地址，必须由用户自己在「设置」里填。
+     * 地址为空时 [isConfigured] 为 false，网络操作会以「尚未配置 NAS 地址」干净失败，
+     * 而不是去连一个不存在的主机。
      */
     var webdavBase: String
-        get() = sp.getString("webdavBase", "https://192.168.31.253:5000/pool0/data")
-            ?: "https://192.168.31.253:5000/pool0/data"
+        get() = sp.getString("webdavBase", "") ?: ""
         set(v) = sp.edit().putString("webdavBase", v).apply()
 
+    /**
+     * NAS 用户名。小米 NAS 上形如 `u<9 位数字>`（每个设备不同）。
+     * **默认空** —— 不预置任何具体账号。
+     */
     var user: String
-        get() = sp.getString("user", "u133630987") ?: "u133630987"
+        get() = sp.getString("user", "") ?: ""
         set(v) = sp.edit().putString("user", v).apply()
 
     var password: String
         get() = sp.getString("password", "") ?: ""
         set(v) = sp.edit().putString("password", v).apply()
+
+    /**
+     * **最基本的配置填了没**：只有 [webdavBase] 非空才为 true。
+     *
+     * ⚠️ 别拿它当"能不能跑"的判据 —— 它只回答"地址填了没"，
+     * 真正的连通性判定走 `EndpointResolver` / `WebDavClient.connect()`。
+     */
+    val isConfigured: Boolean
+        get() = webdavBase.isNotBlank()
 
     /** 是否允许自签设备证书（NAS 的证书由小米 IoT 网关注发、约 21 天轮换） */
     var allowSelfSigned: Boolean
@@ -416,15 +434,23 @@ class Prefs(ctx: Context) {
      * NAS 的 **EUI-64 后缀**（不含前缀）。
      *
      * 由网卡 MAC 派生（MAC 第 7 位置反 + 插入 `ff:fe`），**只要不换网卡就永不变**，
-     * 所以它比 DHCPv6 分配的那个地址可靠得多。家里这台是 MAC `d4:53:2a:c6:db:da`。
+     * 所以它比 DHCPv6 分配的那个地址可靠得多。
+     *
+     * 换算：MAC `aa:bb:cc:dd:ee:ff` → 第 7 位置反得 `a8`，再插入 `ff:fe`
+     * → 完整 EUI-64 `a8bb:ccff:fedd:eeff`，填后 4 组。
+     *
+     * **默认空** —— 不预置任何具体设备的后缀。
      */
     var chanV6Eui64: String
-        get() = sp.getString("chanV6Eui64", "d653:2aff:fec6:dbda") ?: "d653:2aff:fec6:dbda"
+        get() = sp.getString("chanV6Eui64", "") ?: ""
         set(v) = sp.edit().putString("chanV6Eui64", v).apply()
 
-    /** NAS 的 **DHCPv6 后缀尾巴**（`::` 之后那几位，家里这台是 `8f8`）。路由器重启可能变。 */
+    /**
+     * NAS 的 **DHCPv6 后缀尾巴**（`::` 之后那几位，例如 `8f8`）。路由器重启可能变。
+     * **默认空** —— 不预置任何具体设备的后缀。
+     */
     var chanV6DhcpTail: String
-        get() = sp.getString("chanV6DhcpTail", "8f8") ?: "8f8"
+        get() = sp.getString("chanV6DhcpTail", "") ?: ""
         set(v) = sp.edit().putString("chanV6DhcpTail", v).apply()
 
     /** 手填完整 IPv6 地址（填了就**只**用它，不再自动拼）；留空 = 自动 */
@@ -506,7 +532,7 @@ class Prefs(ctx: Context) {
 
     /** 自建 control server 地址（仅用于界面引导与备忘，App 不主动连它 —— 那是客户端的事） */
     var chanHsControlUrl: String
-        get() = sp.getString("chanHsControlUrl", "https://headscale.dsr213.cn") ?: ""
+        get() = sp.getString("chanHsControlUrl", "") ?: ""
         set(v) = sp.edit().putString("chanHsControlUrl", v).apply()
 
     // ---------------------------------------------------------------- 门控与记忆

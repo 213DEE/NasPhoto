@@ -35,7 +35,7 @@ class WebDavClient(
     private val allowSelfSigned: Boolean = true
 ) : AutoCloseable {
 
-    /** 形如 https://192.168.31.253:5000/pool0/data */
+    /** 形如 `https://<你的 NAS 地址>:5000/pool0/data`；空串表示尚未配置 */
     val base: String = baseUrl.trimEnd('/')
 
     var tlsMode: String = "未连接"
@@ -51,7 +51,16 @@ class WebDavClient(
     /** null = 走系统信任链（严格校验）；非 null = 已回退到宽松模式 */
     private var permissiveFactory: SSLSocketFactory? = null
 
-    private val baseUrlObj = URL(base)
+    /**
+     * ⚠️ **允许解析失败**：`base` 可能是空串（App 不预置任何地址），
+     * 而 `URL("")` 会抛 `MalformedURLException` —— 那是**构造函数里**炸的异常，
+     * 调用方连 [lastError] 都来不及看。改成可空 + [isConfigured]，
+     * 让"没配置"表现为一次干净的失败。
+     */
+    private val baseUrlObj: URL? = runCatching { URL(base) }.getOrNull()
+
+    /** 地址可用（非空且能解析出 host） */
+    val isConfigured: Boolean = baseUrlObj?.host?.isNotBlank() == true
 
     /**
      * ⚠️ **IPv6 字面量必须剥掉方括号**。
@@ -65,12 +74,13 @@ class WebDavClient(
      * 只有 [rawRequest] 这条手写 socket 的路（MKCOL / MOVE）会踩。
      * 一旦启用 IPv6 通道，**所有"移进回收站"的操作都会挂**，而且报错完全看不出来是方括号问题。
      */
-    private val host: String = baseUrlObj.host.trim('[', ']')
+    private val host: String = baseUrlObj?.host?.trim('[', ']') ?: ""
     private val hostHeader: String = if (host.contains(':')) "[$host]" else host
-    private val port: Int = if (baseUrlObj.port > 0) baseUrlObj.port
-    else if (baseUrlObj.protocol == "https") 443 else 80
-    private val basePath: String = baseUrlObj.path.trimEnd('/')
-    private val isHttps: Boolean = baseUrlObj.protocol == "https"
+    private val port: Int = baseUrlObj?.let {
+        if (it.port > 0) it.port else if (it.protocol == "https") 443 else 80
+    } ?: 0
+    private val basePath: String = baseUrlObj?.path?.trimEnd('/') ?: ""
+    private val isHttps: Boolean = baseUrlObj?.protocol == "https"
 
     // ------------------------------------------------------------------ 连接
     /**
@@ -82,6 +92,13 @@ class WebDavClient(
      */
     fun connect(timeoutMs: Int = 15000) {
         lastError = null
+        if (!isConfigured) {
+            // 没填地址就别去连 —— 空 host 会被解析成一个毫无意义的 socket 目标，
+            // 报出来的错完全看不出真实原因。这里直接给一句人话。
+            tlsMode = "尚未配置"
+            lastError = "尚未配置 NAS 地址"
+            return
+        }
         try {
             val code = probe(timeoutMs, permissive = false)
             tlsMode = "系统信任链（严格校验）"
@@ -143,7 +160,7 @@ class WebDavClient(
         c.readTimeout = maxOf(timeoutMs, 60000)
         c.instanceFollowRedirects = true
         c.setRequestProperty("Authorization", auth)
-        c.setRequestProperty("User-Agent", "NasPhoto/0.1")
+        c.setRequestProperty("User-Agent", "NasPhoto/" + cn.dsr213.nasphoto.BuildConfig.VERSION_NAME)
         if (c is HttpsURLConnection && permissive) {
             c.sslSocketFactory = trustAllFactory()
             c.hostnameVerifier = javax.net.ssl.HostnameVerifier { _, _ -> true }
@@ -207,7 +224,7 @@ class WebDavClient(
                 // 用 hostHeader 而不是 host —— IPv6 地址在 Host 头里必须带方括号
                 append("Host: $hostHeader:$port\r\n")
                 append("Authorization: $auth\r\n")
-                append("User-Agent: NasPhoto/0.1\r\n")
+                append("User-Agent: NasPhoto/" + cn.dsr213.nasphoto.BuildConfig.VERSION_NAME + "\r\n")
                 for ((k, v) in extraHeaders) append("$k: $v\r\n")
                 append("Content-Length: 0\r\n")
                 append("Connection: close\r\n")

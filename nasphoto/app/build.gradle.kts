@@ -13,7 +13,12 @@ android {
         minSdk = 31
         targetSdk = 35
         versionCode = 1
-        versionName = "0.1.0"
+        // ---------------------------------------------------------------------------
+        // ⚠️ 版本号规则（用户 2026-09-21 明确定下）：
+        //    在作者**明确宣布「可正式分发」之前，版本号必须带 `-alpha` 后缀**。
+        //    去掉后缀是一个需要用户明确拍板的动作，不是随手改的。
+        // ---------------------------------------------------------------------------
+        versionName = "0.1.0-alpha"
     }
 
     buildTypes {
@@ -33,6 +38,17 @@ android {
 
     packaging {
         resources.excludes += setOf("/META-INF/{AL2.0,LGPL2.1}")
+    }
+
+    /**
+     * 打开 BuildConfig —— 让版本号有**单一来源**。
+     *
+     * 同一份版本号出现在三个地方（构建产物 / User-Agent / 主界面状态栏），
+     * 各写各的字面量必然脱节（之前 UA 还停留在 `NasPhoto/0.1`）。
+     * 现在三者都读 [BuildConfig.VERSION_NAME]，改 `versionName` 一处即可。
+     */
+    buildFeatures {
+        buildConfig = true
     }
 }
 

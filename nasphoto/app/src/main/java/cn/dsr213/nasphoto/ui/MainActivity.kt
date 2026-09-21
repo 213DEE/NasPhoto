@@ -1585,9 +1585,16 @@ class MainActivity : AppCompatActivity() {
             val batteryOk = withContext(Dispatchers.IO) { ignoringBatteryOptimizations() }
             // 完整配置存起来给弹窗用
             lastStatsFull = buildString {
+                append(
+                    "NasPhoto " + cn.dsr213.nasphoto.BuildConfig.VERSION_NAME +
+                        "（开发版 · 尚未可用，勿用于重要数据）\n"
+                )
                 append("已降级：$off 个 · 已释放 ${fmt(saved)}\n")
                 append("仅备份（本地原样）：$bak 个\n")
-                append("NAS：${prefs.user} @ ${prefs.webdavBase}\n")
+                append(
+                    if (prefs.isConfigured) "NAS：${prefs.user} @ ${prefs.webdavBase}\n"
+                    else "NAS：尚未配置 —— 去「设置」填 NAS 地址\n"
+                )
                 append("通道：${channelSummary()}\n")
                 append("归档：${prefs.remoteRoot}\n")
                 append("降级延迟：照片=${prefs.downgradeDelayText(false)} · 视频=${prefs.downgradeDelayText(true)}\n")
@@ -2533,8 +2540,9 @@ class MainActivity : AppCompatActivity() {
             .setTitle("设置")
             .setView(scroll)
             .setPositiveButton("保存") { _, _ ->
+                // 留空就是留空，不塞回落值：塞了的话用户在设置里清空地址、
+                // 点保存之后又会被静默改回某个写死的主机，比留空难排查得多。
                 prefs.webdavBase = etBase.text.toString().trim()
-                    .ifEmpty { "https://192.168.31.253:5000/pool0/data" }
                 prefs.user = etUser.text.toString().trim()
                 prefs.password = etPass.text.toString()
                 // ⚠️ 回落值必须与 `Prefs.remoteRoot` 的默认值一致。
@@ -2555,8 +2563,7 @@ class MainActivity : AppCompatActivity() {
                 prefs.chanLanBase = etLanBase.text.toString().trim()
                 prefs.chanV6Enabled = cbV6.isChecked
                 prefs.chanV6Eui64 = etV6Eui.text.toString().trim()
-                    .ifEmpty { "d653:2aff:fec6:dbda" }
-                prefs.chanV6DhcpTail = etV6Dhcp.text.toString().trim().ifEmpty { "8f8" }
+                prefs.chanV6DhcpTail = etV6Dhcp.text.toString().trim()
                 prefs.chanV6ManualAddr = etV6Manual.text.toString().trim()
                 prefs.chanFrpEnabled = cbFrp.isChecked
                 prefs.chanFrpBase = etFrpBase.text.toString().trim()
