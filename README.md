@@ -203,7 +203,9 @@ python3 np_core.py --cgi
 
 <img src="docs/donate_wechat_qr.png" width="220" alt="微信收款码">
 
-**打赏是纯粹的支持，不带来额外功能、优先支持或任何授权。** 不打赏照样能完整使用。
+**关于收费**：Alpha 阶段将始终保持免费；不排除将来推出 Beta 或正式版后，部分功能收费的可能。
+
+**打赏是纯粹的支持，不带来额外功能、优先支持或任何授权。** 就当前的 Alpha 版本而言，不打赏也能用上全部功能。
 
 ### 免责声明
 
@@ -389,7 +391,9 @@ If you're interested in this project and would like to help move it forward fast
 
 <img src="docs/donate_wechat_qr.png" width="220" alt="WeChat tip QR code">
 
-**Tips are support, nothing more — no extra features, no priority support, no licence.** Everything works the same without them.
+**On pricing**: free throughout the Alpha stage. Charging for some features after a future Beta or stable release is **not ruled out**.
+
+**Tips are support, nothing more — no extra features, no priority support, no licence.** As of the current Alpha build, everything works the same without them.
 
 ### Disclaimer
 
