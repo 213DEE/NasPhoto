@@ -87,6 +87,33 @@ generated-icons/
 # ---------------- App 目录内的非源码 ----------------
 nasphoto/*.png
 
+# ---------------- 护栏：绝不入库的凭据文件 ----------------
+# 下面这些脚本里写死了本机 NAS 的明文 root 口令。
+# 列在这里不是"它们太大"，而是防止以后 git add -A 时被误收 —— 一旦进过
+# 历史，删掉也还在 pack 里。要改造成读环境变量再用，否则永远不要提交。
+nasrun.py
+rt.py
+np_adopt.py
+np_merge.py
+np_organize.py
+np_reconcile.py
+np_sftp.py
+nas_cleanup.py
+nas_sftp.py
+_extract_authkey.py
+_frp_token.txt
+
+# ---------------- 一次性脚本与报告 ----------------
+_*.py
+_*.sh
+_*.txt
+_*.html
+*证据*.txt
+NasPhoto_*.html
+DISCLAIMER.md
+README_root_tool.md
+arch_final.json
+
 # ---------------- OS ----------------
 .DS_Store
 Thumbs.db
